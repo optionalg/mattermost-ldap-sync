@@ -50,8 +50,6 @@ func (this *LDAPAuthenticatorWithSync) checkMattermostUser(id int64, username, n
 		this.mattermost.UpdateUser(user)
 	}
 
-	log.Printf("Got user %+v", user)
-
 }
 
 func (this *LDAPAuthenticatorWithSync) checkGroupForMattermostUser(group Group, mail string) {
