@@ -17,6 +17,7 @@ func (this *LDAPAuthenticatorWithSync) checkMattermostUser(id int64, username, n
 	created := false
 	userId := strconv.FormatInt(id, 10)
 	if resp.StatusCode == 404 {
+		log.Println("Creating new user.")
 		// This user does not exist
 		var newUser model.User
 		newUser.AuthService = model.USER_AUTH_SERVICE_GITLAB
@@ -28,8 +29,9 @@ func (this *LDAPAuthenticatorWithSync) checkMattermostUser(id int64, username, n
 
 		user, resp = this.mattermost.CreateUser(&newUser)
 		if resp.Error != nil {
-			log.Fatalf("Could not create user with email %s, got error: %+v.", mail, resp.Error)
+			log.Printf("Could not create user with email %s, got error: %+v.", mail, resp.Error)
 		}
+
 		created = true
 	}
 
@@ -42,12 +44,10 @@ func (this *LDAPAuthenticatorWithSync) checkMattermostUser(id int64, username, n
 			user.LastName = strings.Split(name, " ")[1]
 		}
 
-		if user.AuthService != model.USER_AUTH_SERVICE_GITLAB {
-			user.AuthData = &userId
-			user.AuthService = model.USER_AUTH_SERVICE_GITLAB
+		_, resp = this.mattermost.UpdateUser(user)
+		if resp.Error != nil {
+			log.Printf("Could not update existing user, got Error %+v", resp.Error)
 		}
-
-		this.mattermost.UpdateUser(user)
 	}
 
 }
@@ -56,7 +56,7 @@ func (this *LDAPAuthenticatorWithSync) checkGroupForMattermostUser(group Group, 
 	group.uid = strings.Replace(group.uid, "_", "-", -1)
 	team, resp := this.mattermost.GetTeamByName(group.uid, "")
 	if resp.Error != nil && resp.StatusCode != 404 {
-		log.Fatalf("Could not find team %+v, got error: %+v.", group, resp.Error)
+		log.Printf("ERROR: Could not find team %+v, got error: %+v.", group, resp.Error)
 	}
 
 	if resp.StatusCode == 404 {
@@ -66,7 +66,8 @@ func (this *LDAPAuthenticatorWithSync) checkGroupForMattermostUser(group Group, 
 		newTeam.Type = "I"
 		team, resp = this.mattermost.CreateTeam(&newTeam)
 		if resp.Error != nil {
-			log.Fatalf("Could not create Team %+v, got error %+v", group, resp.Error)
+			log.Printf("ERROR: Could not create Team %+v, got error %+v", group, resp.Error)
+			return
 		}
 
 		log.Printf("Created new Team %s.\n", team.DisplayName)
@@ -74,12 +75,14 @@ func (this *LDAPAuthenticatorWithSync) checkGroupForMattermostUser(group Group, 
 
 	user, userResp := this.mattermost.GetUserByEmail(mail, "")
 	if userResp.Error != nil {
-		log.Fatalf("Could not fetch user when adding to team %+v, got error: %+v", group, userResp.Error)
+		log.Printf("ERROR: Could not fetch user when adding to team %+v, got error: %+v", group, userResp.Error)
+		return
 	}
 
 	_, err := this.mattermost.AddTeamMember(team.Id, user.Id)
 	if err.Error != nil {
-		log.Fatalf("Could add user to team %+v, got error: %+v", group, err.Error)
+		log.Printf("ERROR: Could add user to team %+v, got error: %+v", group, err.Error)
+		return
 	}
 
 	log.Printf("Added user %s to team %s \n", user.Email, team.DisplayName)
