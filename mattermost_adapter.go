@@ -11,7 +11,8 @@ import (
 func (this *LDAPAuthenticatorWithSync) checkMattermostUser(id int64, username, name, mail string) {
 	user, resp := this.mattermost.GetUserByEmail(mail, "")
 	if resp.Error != nil && resp.StatusCode != 404 {
-		log.Fatalf("ERROR: %+v", resp.Error)
+		log.Printf("ERROR: %+v", resp.Error)
+		return
 	}
 
 	created := false
@@ -30,6 +31,7 @@ func (this *LDAPAuthenticatorWithSync) checkMattermostUser(id int64, username, n
 		user, resp = this.mattermost.CreateUser(&newUser)
 		if resp.Error != nil {
 			log.Printf("Could not create user with email %s, got error: %+v.", mail, resp.Error)
+			return
 		}
 
 		created = true
@@ -47,6 +49,7 @@ func (this *LDAPAuthenticatorWithSync) checkMattermostUser(id int64, username, n
 		_, resp = this.mattermost.UpdateUser(user)
 		if resp.Error != nil {
 			log.Printf("Could not update existing user, got Error %+v", resp.Error)
+			return
 		}
 	}
 

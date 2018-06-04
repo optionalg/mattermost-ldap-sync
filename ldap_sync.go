@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/go-ldap/ldap"
 	"github.com/mattermost/mattermost-server/model"
@@ -98,6 +99,11 @@ func (this *LDAPAuthenticatorWithSync) syncMattermostForUser(uid string) {
 	err, user := this.GetUserById(uid)
 	if err != nil {
 		log.Println("ERROR: %+v", err)
+		return
+	}
+
+	if strings.Index(user.(UserData).Username, uid) < 0 {
+		log.Println("ERROR: Invalid state. Got uid %s but userData %+v.")
 		return
 	}
 
